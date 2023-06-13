@@ -21,7 +21,7 @@ contaaacts update ./friends alice --email 'alice2@example.com'
 contaaacts merge ./friends ./otherfriends ./merged
 
 # provide a sync server for other peers to sync with on localhost:9090
-contaaacts serve ./friends localhost 9090
+contaaacts serve ./friends 9090
 
 # sync with a contaaacts server running at localhost:9090
 contaaacts sync ./friends --server localhost 9090
