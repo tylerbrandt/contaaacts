@@ -296,19 +296,26 @@ func receiveMsg(connection: NWConnection) async throws -> Data? {
                 cont.resume(returning: nil)
                 return
             }
-            cont.resume(returning: content)
+          do {
+            let decryptedContent = try ChaChaCoder.default.decrypt(content)
+            cont.resume(returning: decryptedContent)
+          } catch {
+            cont.resume(throwing: error)
+            return
+          }
         }
     })
 }
 
 func sendMsg(connection: NWConnection, msg: Data) async throws -> Void {
+  let encryptedMsg = try ChaChaCoder.default.encrypt(msg)
     let nwMsg = NWProtocolFramer.Message(definition: SyncProtocol.definition)
     let context = NWConnection.ContentContext(
         identifier: "sync",
         metadata: [nwMsg])
     try await withCheckedThrowingContinuation(function: "sendMsg", { (cont: CheckedContinuation<Void, any Error>) in 
         connection.send(
-            content: msg,
+            content: encryptedMsg,
             contentContext: context,
             isComplete: true,
             completion: .contentProcessed(
