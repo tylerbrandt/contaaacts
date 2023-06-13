@@ -36,7 +36,7 @@ func create(filename: String) {
 
 func add(filename: String, name: String, email: String) {
     let bytes = try! Data(contentsOf: URL(fileURLWithPath: filename))
-    let document = try! Document([UInt8](bytes))
+    let document = try! Document(bytes)
     let contacts: ObjId
     switch try! document.get(obj: ObjId.ROOT, key: "contacts")! {
     case .Object(let id, _):
@@ -60,14 +60,13 @@ func add(filename: String, name: String, email: String) {
 
     // now save the document to the filesystem
     let savedBytes = document.save()
-    let data = Data(bytes: savedBytes, count:savedBytes.count)
     let output = URL(fileURLWithPath: filename)
-    try! data.write(to: output)
+    try! savedBytes.write(to: output)
 }
 
 func list(filename: String) {
     let bytes = try! Data(contentsOf: URL(fileURLWithPath: filename))
-    let document = try! Document([UInt8](bytes))
+    let document = try! Document(bytes)
     let contacts: ObjId
     switch try! document.get(obj: ObjId.ROOT, key: "contacts")! {
     case .Object(let id, _):
@@ -106,7 +105,7 @@ func list(filename: String) {
 
 func update(filename: String, contact: String, newEmail: String) {
     let bytes = try! Data(contentsOf: URL(fileURLWithPath: filename))
-    let document = try! Document([UInt8](bytes))
+    let document = try! Document(bytes)
     let contacts: ObjId
     switch try! document.get(obj: ObjId.ROOT, key: "contacts")! {
     case .Object(let id, _):
@@ -144,28 +143,26 @@ func update(filename: String, contact: String, newEmail: String) {
 
     // now save the document to the filesystem
     let savedBytes = document.save()
-    let data = Data(bytes: savedBytes, count:savedBytes.count)
     let output = URL(fileURLWithPath: filename)
-    try! data.write(to: output)
+    try! savedBytes.write(to: output)
 }
 
 func merge(filename1: String, filename2: String, out: String) {
     let leftBytes = try! Data(contentsOf: URL(fileURLWithPath: filename1))
-    let left = try! Document([UInt8](leftBytes))
+    let left = try! Document(leftBytes)
 
     let rightBytes = try! Data(contentsOf: URL(fileURLWithPath: filename2))
-    let right = try! Document([UInt8](rightBytes))
+    let right = try! Document(rightBytes)
 
     try! left.merge(other: right)
     let savedBytes = left.save()
-    let data = Data(bytes: savedBytes, count:savedBytes.count)
     let output = URL(fileURLWithPath: out)
-    try! data.write(to: output)
+    try! savedBytes.write(to: output)
 }
 
 func serve(filename: String, port: String) {
     let bytes = try! Data(contentsOf: URL(fileURLWithPath: filename))
-    let document = try! Document([UInt8](bytes))
+    let document = try! Document(bytes)
 
     let listener = syncListener(port: port)
     listener.newConnectionHandler = { conn in
@@ -209,7 +206,7 @@ func syncListener(port: String) -> NWListener {
 
 func sync(filename: String, server: String, port: String) {
     let bytes = try! Data(contentsOf: URL(fileURLWithPath: filename))
-    let document = try! Document([UInt8](bytes))
+    let document = try! Document(bytes)
 
     let conn = syncConnection(server:server, port:port)
     conn.start(queue: .global(qos: .default))
@@ -238,9 +235,8 @@ func sync(filename: String, server: String, port: String) {
     group.wait()
 
     let savedBytes = document.save()
-    let data = Data(bytes: savedBytes, count:savedBytes.count)
     let output = URL(fileURLWithPath: filename)
-    try! data.write(to: output)
+    try! savedBytes.write(to: output)
 }
 
 func syncConnection(server: String, port: String) -> NWConnection {
@@ -289,7 +285,7 @@ func withReadyConnection(connection: NWConnection, onReady: @escaping (NWConnect
     })
 }
 
-func receiveMsg(connection: NWConnection) async throws -> [UInt8]? {
+func receiveMsg(connection: NWConnection) async throws -> Data? {
     try await withCheckedThrowingContinuation(function: "receiveMessage", { cont in 
         connection.receiveMessage { (content, context, isComplete, error) in
             if let error = error {
@@ -300,13 +296,12 @@ func receiveMsg(connection: NWConnection) async throws -> [UInt8]? {
                 cont.resume(returning: nil)
                 return
             }
-            let incoming = [UInt8](content)
-            cont.resume(returning: incoming)
+            cont.resume(returning: content)
         }
     })
 }
 
-func sendMsg(connection: NWConnection, msg: [UInt8]) async throws -> Void {
+func sendMsg(connection: NWConnection, msg: Data) async throws -> Void {
     let nwMsg = NWProtocolFramer.Message(definition: SyncProtocol.definition)
     let context = NWConnection.ContentContext(
         identifier: "sync",
